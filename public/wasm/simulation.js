@@ -1,5 +1,3 @@
-/* @ts-self-types="./simulation.d.ts" */
-
 export class Simulation {
     static __wrap(ptr) {
         ptr = ptr >>> 0;

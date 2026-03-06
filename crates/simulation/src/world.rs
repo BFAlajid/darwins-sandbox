@@ -3,6 +3,7 @@ use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use slotmap::DenseSlotMap;
 
+use crate::brain::NUM_INPUTS;
 use crate::config::SimConfig;
 use crate::creature::{Creature, CreatureKey};
 use crate::physics;
@@ -47,9 +48,9 @@ pub struct World {
 
 /// Simple grid for fast food lookup by creatures
 struct FoodGrid {
-    inv_cell_size: f32,
-    grid_width: usize,
-    cells: Vec<Vec<usize>>, // indices into World.food
+    pub(crate) inv_cell_size: f32,
+    pub(crate) grid_width: usize,
+    pub(crate) cells: Vec<Vec<usize>>, // indices into World.food
 }
 
 impl FoodGrid {
@@ -192,46 +193,125 @@ impl World {
         self.food_spatial.rebuild(&self.food);
         let spatial_hash_us = t_phase.elapsed_us();
 
-        // --- Physics: movement with simple food seeking (M1: no brain) ---
+        // --- Physics: neural network driven movement ---
         let t_phase = Timer::start();
         let keys: Vec<CreatureKey> = self.creatures.keys().collect();
+
+        // Pre-collect creature data for neighbor queries (avoid borrow conflict)
+        let creature_data: Vec<(CreatureKey, f32, f32, f32, f32, f32)> = keys.iter()
+            .filter_map(|k| self.creatures.get(*k).map(|c| (*k, c.x, c.y, c.rotation, c.size_trait, c.speed_trait)))
+            .collect();
+
         for key in &keys {
             let creature = &self.creatures[*key];
+            let cx = creature.x;
+            let cy = creature.y;
+            let crot = creature.rotation;
+            let vision_range = creature.vision_range;
+            let vision_sq = vision_range * vision_range;
+            let half_cone = self.config.vision_cone_angle * 0.5;
+            let fwd_x = crot.cos();
+            let fwd_y = crot.sin();
+            let ww = self.config.world_width;
+            let wh = self.config.world_height;
 
-            // Find nearest food within vision range for simple seek behavior
-            let vision_sq = creature.vision_range * creature.vision_range;
-            let nearest_food_idx = self.food_spatial.query_nearest(
-                creature.x, creature.y, vision_sq,
-                &self.food, self.config.world_width, self.config.world_height,
-            );
-            let nearest_food_angle = nearest_food_idx.map(|fi| {
+            // --- Gather NN inputs ---
+            let mut inputs = [0.0f32; NUM_INPUTS];
+
+            // 0-1: nearest food distance (normalized) and relative angle
+            let mut best_food_dist_sq = f32::MAX;
+            let mut best_food_dx = 0.0f32;
+            let mut best_food_dy = 0.0f32;
+            let mut food_left = 0u32;
+            let mut food_right = 0u32;
+
+            if let Some(fi) = self.food_spatial.query_nearest(cx, cy, vision_sq, &self.food, ww, wh) {
                 let f = &self.food[fi];
-                let mut dx = f.x - creature.x;
-                let mut dy = f.y - creature.y;
-                if dx.abs() > self.config.world_width * 0.5 {
-                    dx -= dx.signum() * self.config.world_width;
+                let (dx, dy) = toroidal_delta(cx, cy, f.x, f.y, ww, wh);
+                let dist_sq = dx * dx + dy * dy;
+                if in_vision_cone(dx, dy, fwd_x, fwd_y, half_cone) {
+                    best_food_dist_sq = dist_sq;
+                    best_food_dx = dx;
+                    best_food_dy = dy;
                 }
-                if dy.abs() > self.config.world_height * 0.5 {
-                    dy -= dy.signum() * self.config.world_height;
-                }
-                dy.atan2(dx)
-            });
+            }
 
-            // M1: Simple food-seeking + random exploration
-            let (thrust, turn) = if let Some(food_angle) = nearest_food_angle {
-                // Steer toward food
-                let mut angle_diff = food_angle - creature.rotation;
-                // Normalize to [-PI, PI]
-                while angle_diff > std::f32::consts::PI { angle_diff -= std::f32::consts::TAU; }
-                while angle_diff < -std::f32::consts::PI { angle_diff += std::f32::consts::TAU; }
-                let turn = angle_diff.clamp(-self.config.max_turn_rate, self.config.max_turn_rate);
-                (0.8, turn)
-            } else {
-                // Random exploration when no food visible
-                let thrust = self.rng.gen_range(0.3..1.0);
-                let turn = self.rng.gen_range(-self.config.max_turn_rate..self.config.max_turn_rate);
-                (thrust, turn)
-            };
+            // Count food in left/right vision sectors (sample from food grid)
+            // Use a broader search for sector counting
+            let food_check_range_sq = vision_sq;
+            let fcx = (cx * self.food_spatial.inv_cell_size) as i32;
+            let fcy = (cy * self.food_spatial.inv_cell_size) as i32;
+            let gw = self.food_spatial.grid_width as i32;
+            let gh = (self.food_spatial.cells.len() / self.food_spatial.grid_width.max(1)) as i32;
+            for dy_cell in -2..=2 {
+                for dx_cell in -2..=2 {
+                    let nx = ((fcx + dx_cell) % gw + gw) % gw;
+                    let ny = ((fcy + dy_cell) % gh + gh) % gh;
+                    let cell_idx = (ny * gw + nx) as usize;
+                    if cell_idx >= self.food_spatial.cells.len() { continue; }
+                    for &fi in &self.food_spatial.cells[cell_idx] {
+                        let f = &self.food[fi];
+                        let (dx, dy) = toroidal_delta(cx, cy, f.x, f.y, ww, wh);
+                        let dist_sq = dx * dx + dy * dy;
+                        if dist_sq > food_check_range_sq { continue; }
+                        if !in_vision_cone(dx, dy, fwd_x, fwd_y, half_cone) { continue; }
+                        // Cross product: fwd × delta → positive = left, negative = right
+                        let cross = fwd_x * dy - fwd_y * dx;
+                        if cross > 0.0 { food_left += 1; } else { food_right += 1; }
+                    }
+                }
+            }
+
+            if best_food_dist_sq < f32::MAX {
+                inputs[0] = 1.0 - (best_food_dist_sq.sqrt() / vision_range).min(1.0);
+                let rel_angle = relative_angle(best_food_dx, best_food_dy, fwd_x, fwd_y);
+                inputs[1] = rel_angle / std::f32::consts::PI; // normalize to [-1, 1]
+            }
+            inputs[2] = (food_left as f32 / 10.0).min(1.0);
+            inputs[3] = (food_right as f32 / 10.0).min(1.0);
+
+            // 4-7: nearest creature in vision cone
+            let mut best_creature_dist_sq = f32::MAX;
+            let mut best_creature_dx = 0.0f32;
+            let mut best_creature_dy = 0.0f32;
+            let mut best_creature_size = 0.0f32;
+            let mut best_creature_speed = 0.0f32;
+
+            for &(nk, nx, ny, _, nsize, nspeed) in &creature_data {
+                if nk == *key { continue; }
+                let (dx, dy) = toroidal_delta(cx, cy, nx, ny, ww, wh);
+                let dist_sq = dx * dx + dy * dy;
+                if dist_sq > vision_sq { continue; }
+                if !in_vision_cone(dx, dy, fwd_x, fwd_y, half_cone) { continue; }
+                if dist_sq < best_creature_dist_sq {
+                    best_creature_dist_sq = dist_sq;
+                    best_creature_dx = dx;
+                    best_creature_dy = dy;
+                    best_creature_size = nsize;
+                    best_creature_speed = nspeed;
+                }
+            }
+
+            if best_creature_dist_sq < f32::MAX {
+                inputs[4] = 1.0 - (best_creature_dist_sq.sqrt() / vision_range).min(1.0);
+                let rel_angle = relative_angle(best_creature_dx, best_creature_dy, fwd_x, fwd_y);
+                inputs[5] = rel_angle / std::f32::consts::PI;
+                inputs[6] = (best_creature_size / creature.size_trait - 1.0).clamp(-1.0, 1.0);
+                inputs[7] = (best_creature_speed / self.config.max_speed * 2.0 - 1.0).clamp(-1.0, 1.0);
+            }
+
+            // 8-10: own state
+            inputs[8] = (creature.energy / self.config.max_energy) * 2.0 - 1.0;
+            inputs[9] = (physics::speed_squared(creature).sqrt() / self.config.max_speed) * 2.0 - 1.0;
+            inputs[10] = (creature.size_trait / self.config.max_size) * 2.0 - 1.0;
+
+            // 11: random noise for exploration
+            inputs[11] = self.rng.gen_range(-1.0..1.0);
+
+            // --- Forward pass ---
+            let output = creature.brain.forward(&inputs);
+            let turn = output.turn * self.config.max_turn_rate;
+            let thrust = output.thrust;
 
             let creature = self.creatures.get_mut(*key).unwrap();
             physics::apply_random_movement(creature, thrust, turn, &self.config);
@@ -295,10 +375,11 @@ impl World {
         let boosted_cost = population >= POPULATION_SOFT_CAP;
 
         let mut new_creatures: Vec<Creature> = Vec::new();
+        // Store reproduce decisions from last NN forward pass
+        // (creatures with high energy always reproduce for stability)
         for key in &keys {
             let creature = &self.creatures[*key];
             if can_reproduce && creature.can_reproduce(&self.config) && population + new_creatures.len() < MAX_CREATURES {
-                // Decide to reproduce (M1: always reproduce when able)
                 let offspring = Creature::new_offspring(creature, &mut self.rng, &self.config);
                 if offspring.generation > self.generation_max {
                     self.generation_max = offspring.generation;
@@ -451,4 +532,37 @@ impl World {
         }
         data
     }
+}
+
+/// Compute toroidal delta from (ax, ay) to (bx, by)
+#[inline(always)]
+fn toroidal_delta(ax: f32, ay: f32, bx: f32, by: f32, ww: f32, wh: f32) -> (f32, f32) {
+    let mut dx = bx - ax;
+    let mut dy = by - ay;
+    if dx.abs() > ww * 0.5 {
+        dx -= dx.signum() * ww;
+    }
+    if dy.abs() > wh * 0.5 {
+        dy -= dy.signum() * wh;
+    }
+    (dx, dy)
+}
+
+/// Check if a direction (dx, dy) falls within a vision cone defined by forward vector and half-angle
+#[inline(always)]
+fn in_vision_cone(dx: f32, dy: f32, fwd_x: f32, fwd_y: f32, half_cone: f32) -> bool {
+    let len_sq = dx * dx + dy * dy;
+    if len_sq < 1e-6 { return true; } // very close = always visible
+    let dot = dx * fwd_x + dy * fwd_y;
+    // cos(angle) = dot / (|fwd| * |delta|), |fwd| = 1
+    // angle < half_cone when cos(angle) > cos(half_cone)
+    dot > half_cone.cos() * len_sq.sqrt()
+}
+
+/// Compute signed relative angle of (dx, dy) relative to forward direction
+#[inline(always)]
+fn relative_angle(dx: f32, dy: f32, fwd_x: f32, fwd_y: f32) -> f32 {
+    let dot = dx * fwd_x + dy * fwd_y;
+    let cross = fwd_x * dy - fwd_y * dx;
+    cross.atan2(dot)
 }

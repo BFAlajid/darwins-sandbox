@@ -2,6 +2,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use slotmap::new_key_type;
 
+use crate::brain::Brain;
 use crate::config::SimConfig;
 
 new_key_type! {
@@ -28,6 +29,9 @@ pub struct Creature {
     pub ticks_since_reproduction: u32,
     pub children_count: u32,
     pub species_id: u32,
+
+    // Neural network brain
+    pub brain: Brain,
 }
 
 impl Creature {
@@ -38,6 +42,8 @@ impl Creature {
         let speed_trait = rng.gen_range(config.min_speed..=config.max_speed);
         let size_trait = rng.gen_range(config.min_size..=config.max_size);
         let vision_range = rng.gen_range(config.min_vision_range..=config.max_vision_range);
+
+        let brain = Brain::new_random(rng, config);
 
         Self {
             x,
@@ -54,6 +60,7 @@ impl Creature {
             ticks_since_reproduction: 0,
             children_count: 0,
             species_id,
+            brain,
         }
     }
 
@@ -68,13 +75,17 @@ impl Creature {
         let x = (parent.x + offset_x).rem_euclid(config.world_width);
         let y = (parent.y + offset_y).rem_euclid(config.world_height);
 
-        // Random trait variation in M1 (proper mutation in M4)
-        let speed_trait = (parent.speed_trait + rng.gen_range(-0.5..0.5))
+        // Trait mutation
+        let trait_scale = config.trait_mutation_scale;
+        let speed_trait = (parent.speed_trait + rng.gen_range(-0.5..0.5) * trait_scale)
             .clamp(config.min_speed, config.max_speed);
-        let size_trait = (parent.size_trait + rng.gen_range(-0.3..0.3))
+        let size_trait = (parent.size_trait + rng.gen_range(-0.3..0.3) * trait_scale)
             .clamp(config.min_size, config.max_size);
-        let vision_range = (parent.vision_range + rng.gen_range(-5.0..5.0))
+        let vision_range = (parent.vision_range + rng.gen_range(-5.0..5.0) * trait_scale)
             .clamp(config.min_vision_range, config.max_vision_range);
+
+        // Brain mutation
+        let brain = parent.brain.mutate(rng, config);
 
         Self {
             x,
@@ -91,6 +102,7 @@ impl Creature {
             ticks_since_reproduction: 0,
             children_count: 0,
             species_id: parent.species_id,
+            brain,
         }
     }
 
@@ -147,5 +159,6 @@ impl Creature {
             || self.vy.is_nan()
             || self.energy.is_nan()
             || self.rotation.is_nan()
+            || self.brain.has_nan()
     }
 }

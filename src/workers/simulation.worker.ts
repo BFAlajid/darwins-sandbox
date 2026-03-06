@@ -10,27 +10,16 @@ let timeoutId: ReturnType<typeof setTimeout> | null = null;
 const TICK_BUDGET_MS = 14;
 
 async function initWasm(): Promise<void> {
-  // Fetch the JS glue as text, convert to blob URL for reliable import
-  const [glueResponse, wasmResponse] = await Promise.all([
-    fetch('/wasm/simulation.js'),
-    fetch('/wasm/simulation_bg.wasm'),
-  ]);
+  // Import the WASM glue directly from public path
+  const glueUrl = '/wasm/simulation.js';
+  // @ts-ignore — runtime path, not a TS module
+  const glue = await import(/* webpackIgnore: true */ glueUrl);
 
-  const glueText = await glueResponse.text();
+  // Fetch the WASM binary and initialize
+  const wasmResponse = await fetch('/wasm/simulation_bg.wasm');
   const wasmBytes = await wasmResponse.arrayBuffer();
-
-  // Create blob URL from the glue JS so we can import it as a module
-  const blob = new Blob([glueText], { type: 'application/javascript' });
-  const blobUrl = URL.createObjectURL(blob);
-
-  try {
-    const glue = await import(/* webpackIgnore: true */ blobUrl);
-    await glue.default(wasmBytes);
-    wasmExports = glue;
-
-  } finally {
-    URL.revokeObjectURL(blobUrl);
-  }
+  await glue.default(wasmBytes);
+  wasmExports = glue;
 }
 
 function getStats(): SimStats {

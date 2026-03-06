@@ -15,7 +15,9 @@ export function useSimulation() {
   const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastStatsUpdateRef = useRef<number>(0);
 
-  const store = useSimulationStore();
+  // Use getState() for imperative access — do NOT subscribe to the store
+  // (subscribing causes re-renders which recreate initWorker and restart the worker)
+  const store = useSimulationStore.getState;
 
   const postCommand = useCallback((cmd: SimCommand) => {
     workerRef.current?.postMessage(cmd);
@@ -26,7 +28,7 @@ export function useSimulation() {
       workerRef.current.terminate();
     }
 
-    store.setState('loading');
+    store().setState('loading');
 
     const worker = new Worker(
       new URL('../workers/simulation.worker.ts', import.meta.url),
@@ -38,7 +40,7 @@ export function useSimulation() {
 
       switch (msg.type) {
         case 'ready':
-          store.setState('paused');
+          store().setState('paused');
           break;
 
         case 'frame': {
@@ -49,8 +51,8 @@ export function useSimulation() {
           // Throttle stats updates to 5Hz
           const now = Date.now();
           if (now - lastStatsUpdateRef.current > STATS_THROTTLE_MS) {
-            store.setStats(msg.stats);
-            store.setWorldSize(msg.worldWidth, msg.worldHeight);
+            store().setStats(msg.stats);
+            store().setWorldSize(msg.worldWidth, msg.worldHeight);
             lastStatsUpdateRef.current = now;
           }
           break;
@@ -61,13 +63,13 @@ export function useSimulation() {
           break;
 
         case 'error':
-          store.setError(msg.message);
+          store().setError(msg.message);
           break;
       }
     };
 
     worker.onerror = (e) => {
-      store.setError(e.message || 'Worker crashed');
+      store().setError(e.message || 'Worker crashed');
     };
 
     workerRef.current = worker;
@@ -79,7 +81,7 @@ export function useSimulation() {
     if (watchdogRef.current) clearInterval(watchdogRef.current);
     watchdogRef.current = setInterval(() => {
       if (
-        store.state === 'running' &&
+        store().state === 'running' &&
         Date.now() - lastHeartbeatRef.current > WATCHDOG_TIMEOUT
       ) {
         console.warn('Worker watchdog: no heartbeat, restarting...');
@@ -89,13 +91,13 @@ export function useSimulation() {
   }, [store]);
 
   const play = useCallback(() => {
-    const speed = useSimulationStore.getState().speed;
-    store.setState('running');
+    const speed = store().speed;
+    store().setState('running');
     postCommand({ type: 'step', count: speed });
   }, [store, postCommand]);
 
   const pause = useCallback(() => {
-    store.setState('paused');
+    store().setState('paused');
     postCommand({ type: 'pause' });
   }, [store, postCommand]);
 
@@ -104,13 +106,13 @@ export function useSimulation() {
   }, [postCommand]);
 
   const reset = useCallback((seed?: number) => {
-    store.setState('loading');
+    store().setState('loading');
     postCommand({ type: 'reset', seed });
   }, [store, postCommand]);
 
   const setSpeed = useCallback((speed: number) => {
-    store.setSpeed(speed);
-    if (useSimulationStore.getState().state === 'running') {
+    store().setSpeed(speed);
+    if (store().state === 'running') {
       postCommand({ type: 'pause' });
       postCommand({ type: 'step', count: speed });
     }
