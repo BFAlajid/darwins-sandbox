@@ -33,6 +33,8 @@ function getStats(): SimStats {
     nanDeaths: sim.get_nan_deaths(),
     energyDriftPct: sim.get_energy_drift_pct(),
     profileJson: sim.get_profile_json(),
+    speciesCount: sim.get_species_count(),
+    speciesJson: sim.get_species_json(),
   };
 }
 

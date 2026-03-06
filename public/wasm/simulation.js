@@ -111,6 +111,30 @@ export class Simulation {
         return ret >>> 0;
     }
     /**
+     * Get number of active species.
+     * @returns {number}
+     */
+    get_species_count() {
+        const ret = wasm.simulation_get_species_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Get species data as JSON string.
+     * @returns {string}
+     */
+    get_species_json() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.simulation_get_species_json(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * Get current tick number.
      * @returns {bigint}
      */

@@ -5,6 +5,7 @@ pub mod physics;
 pub mod profile;
 pub mod render_buffer;
 pub mod spatial_hash;
+pub mod speciation;
 pub mod world;
 
 use wasm_bindgen::prelude::*;
@@ -137,5 +138,15 @@ impl Simulation {
     /// Get world height.
     pub fn get_world_height(&self) -> f32 {
         self.world.config.world_height
+    }
+
+    /// Get number of active species.
+    pub fn get_species_count(&self) -> usize {
+        self.world.species_count()
+    }
+
+    /// Get species data as JSON string.
+    pub fn get_species_json(&self) -> String {
+        self.world.species_json()
     }
 }

@@ -11,6 +11,15 @@ export interface SimStats {
   nanDeaths: number;
   energyDriftPct: number;
   profileJson: string;
+  speciesCount: number;
+  speciesJson: string;
+}
+
+export interface SpeciesInfo {
+  id: number;
+  name: string;
+  color: [number, number, number];
+  member_count: number;
 }
 
 export interface TickProfile {

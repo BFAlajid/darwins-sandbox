@@ -75,6 +75,7 @@ export function SimulationControls({ onPlay, onPause, onStep, onReset, onSetSpee
             <span>Gen: <span className="text-gray-200">{stats.generationMax}</span></span>
             <span>Pop: <span className="text-gray-200">{stats.creatureCount}</span></span>
             <span>Food: <span className="text-gray-200">{stats.foodCount}</span></span>
+            <span>Species: <span className="text-gray-200">{stats.speciesCount}</span></span>
           </>
         )}
       </div>

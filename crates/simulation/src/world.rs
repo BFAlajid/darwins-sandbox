@@ -10,6 +10,7 @@ use crate::physics;
 use crate::profile::{TickProfile, Timer};
 use crate::render_buffer::RenderBuffer;
 use crate::spatial_hash::SpatialHash;
+use crate::speciation::SpeciesTracker;
 
 const MAX_CREATURES: usize = 10_000;
 const POPULATION_SOFT_CAP: usize = 3_000;
@@ -37,6 +38,7 @@ pub struct World {
     spatial_hash: SpatialHash,
     food_spatial: FoodGrid,
     render_buffer: RenderBuffer,
+    species_tracker: SpeciesTracker,
     last_profile: TickProfile,
 
     // Catastrophe state
@@ -159,6 +161,7 @@ impl World {
         );
         let food_spatial = FoodGrid::new(config.world_width, config.world_height, cell_size);
         let render_buffer = RenderBuffer::new(config.initial_population as usize * 2);
+        let species_tracker = SpeciesTracker::new(&config);
 
         Ok(Self {
             config,
@@ -174,6 +177,7 @@ impl World {
             spatial_hash,
             food_spatial,
             render_buffer,
+            species_tracker,
             last_profile: TickProfile::default(),
             catastrophe_ticks_remaining: 0,
             energy_drift_pct: 0.0,
@@ -375,12 +379,15 @@ impl World {
         let boosted_cost = population >= POPULATION_SOFT_CAP;
 
         let mut new_creatures: Vec<Creature> = Vec::new();
-        // Store reproduce decisions from last NN forward pass
-        // (creatures with high energy always reproduce for stability)
         for key in &keys {
             let creature = &self.creatures[*key];
             if can_reproduce && creature.can_reproduce(&self.config) && population + new_creatures.len() < MAX_CREATURES {
-                let offspring = Creature::new_offspring(creature, &mut self.rng, &self.config);
+                let mut offspring = Creature::new_offspring(creature, &mut self.rng, &self.config);
+                // Assign species via compatibility check
+                let parent_species = creature.species_id;
+                offspring.species_id = self.species_tracker.assign_species(
+                    &offspring, parent_species, &mut self.rng,
+                );
                 if offspring.generation > self.generation_max {
                     self.generation_max = offspring.generation;
                 }
@@ -394,7 +401,7 @@ impl World {
             // Apply boosted metabolic cost at soft cap
             if boosted_cost {
                 let creature = self.creatures.get_mut(*key).unwrap();
-                creature.energy -= self.config.basal_cost * 0.5; // extra 50% cost
+                creature.energy -= self.config.basal_cost * 0.5;
             }
         }
         for offspring in new_creatures {
@@ -472,10 +479,24 @@ impl World {
                 * 100.0;
         }
 
+        // --- Species tracking ---
+        self.species_tracker.update_counts(
+            self.creatures.values().map(|c| (
+                c.species_id,
+                c.speed_trait,
+                c.size_trait,
+                c.vision_range,
+                c.brain.ih_weights.clone(),
+                c.brain.ho_weights.clone(),
+            ))
+        );
+        self.species_tracker.adjust_threshold(&self.config);
+
         // --- Pack render buffer ---
         let t_render = Timer::start();
         self.render_buffer.pack(
             &self.creatures,
+            &self.species_tracker,
             self.config.max_energy,
             self.config.max_lifespan,
         );
@@ -520,6 +541,14 @@ impl World {
 
     pub fn energy_drift_pct(&self) -> f32 {
         self.energy_drift_pct
+    }
+
+    pub fn species_count(&self) -> usize {
+        self.species_tracker.species_count()
+    }
+
+    pub fn species_json(&self) -> String {
+        serde_json::to_string(&self.species_tracker.species).unwrap_or_default()
     }
 
     /// Pack food positions into a flat f32 buffer: [x, y, energy, ...]

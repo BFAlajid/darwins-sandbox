@@ -85,20 +85,20 @@ impl Brain {
         }
     }
 
-    /// Create offspring brain with mutation
-    pub fn mutate(&self, rng: &mut impl Rng, config: &SimConfig) -> Self {
-        let rate = config.base_mutation_rate;
+    /// Create offspring brain with mutation.
+    /// Uses the creature's heritable mutation_rate instead of config's base rate.
+    pub fn mutate(&self, rng: &mut impl Rng, mutation_rate: f32, config: &SimConfig) -> Self {
         let strength = config.base_mutation_strength;
         let clamp = config.weight_clamp;
         let cauchy_prob = config.cauchy_probability;
 
         let mut child = self.clone();
 
-        // Mutate all weight arrays
-        mutate_weights(&mut child.ih_weights, rng, rate, strength, clamp, cauchy_prob);
-        mutate_weights(&mut child.h_biases, rng, rate, strength, clamp, cauchy_prob);
-        mutate_weights(&mut child.ho_weights, rng, rate, strength, clamp, cauchy_prob);
-        mutate_weights(&mut child.o_biases, rng, rate, strength, clamp, cauchy_prob);
+        // Mutate all weight arrays with weight-magnitude scaling
+        mutate_weights(&mut child.ih_weights, rng, mutation_rate, strength, clamp, cauchy_prob);
+        mutate_weights(&mut child.h_biases, rng, mutation_rate, strength, clamp, cauchy_prob);
+        mutate_weights(&mut child.ho_weights, rng, mutation_rate, strength, clamp, cauchy_prob);
+        mutate_weights(&mut child.o_biases, rng, mutation_rate, strength, clamp, cauchy_prob);
 
         child
     }
@@ -155,12 +155,16 @@ fn mutate_weights(
 ) {
     for w in weights.iter_mut() {
         if rng.gen::<f32>() < rate {
+            // Weight magnitude scaling: protect large weights from catastrophic disruption
+            let magnitude_scale = (1.0 - w.abs() / clamp).max(0.1);
+            let effective_strength = strength * magnitude_scale;
+
             let perturbation = if rng.gen::<f32>() < cauchy_prob {
                 // Cauchy mutation for occasional large jumps
-                cauchy_sample(rng) * strength * 3.0
+                cauchy_sample(rng) * effective_strength * 3.0
             } else {
                 // Gaussian-like mutation (using uniform approximation)
-                rng.gen_range(-1.0..1.0) * strength
+                rng.gen_range(-1.0..1.0) * effective_strength
             };
             *w = (*w + perturbation).clamp(-clamp, clamp);
         }
@@ -210,7 +214,7 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(99);
         let brain = Brain::new_random(&mut rng, &config);
 
-        let child = brain.mutate(&mut rng, &config);
+        let child = brain.mutate(&mut rng, config.base_mutation_rate, &config);
         let clamp = config.weight_clamp;
 
         for w in child.ih_weights.iter().chain(child.ho_weights.iter())

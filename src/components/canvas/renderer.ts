@@ -6,6 +6,9 @@ interface Camera {
   zoom: number;
 }
 
+// Minimum visual size for creatures (in world units) so they're always visible
+const MIN_RENDER_SIZE = 5;
+
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   creatureData: Float32Array | null,
@@ -34,23 +37,35 @@ export function renderFrame(
 
   // World boundary
   ctx.strokeStyle = '#333355';
-  ctx.lineWidth = 1 / camera.zoom;
+  ctx.lineWidth = 2 / camera.zoom;
   ctx.strokeRect(0, 0, worldWidth, worldHeight);
+
+  // Grid lines for orientation
+  ctx.strokeStyle = '#1a1a30';
+  ctx.lineWidth = 0.5 / camera.zoom;
+  const gridStep = 100;
+  for (let gx = gridStep; gx < worldWidth; gx += gridStep) {
+    ctx.beginPath();
+    ctx.moveTo(gx, 0);
+    ctx.lineTo(gx, worldHeight);
+    ctx.stroke();
+  }
+  for (let gy = gridStep; gy < worldHeight; gy += gridStep) {
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(worldWidth, gy);
+    ctx.stroke();
+  }
 
   // --- Render food ---
   if (foodData && foodData.length > 0) {
     ctx.fillStyle = '#44cc44';
     const foodPath = new Path2D();
-    const foodSize = Math.max(1.5, 2 / camera.zoom);
+    const foodSize = Math.max(3, 4 / camera.zoom);
     for (let i = 0; i < foodData.length; i += 3) {
       const fx = foodData[i];
       const fy = foodData[i + 1];
-      foodPath.rect(
-        (fx - foodSize * 0.5) | 0,
-        (fy - foodSize * 0.5) | 0,
-        foodSize,
-        foodSize,
-      );
+      foodPath.rect(fx - foodSize * 0.5, fy - foodSize * 0.5, foodSize, foodSize);
     }
     ctx.fill(foodPath);
   }
@@ -60,11 +75,16 @@ export function renderFrame(
 
   const creatureCount = creatureData.length / FLOATS_PER_CREATURE;
 
-  // Determine LOD from zoom
-  const lod = camera.zoom < 0.3 ? 0
-    : camera.zoom < 0.7 ? 1
-    : camera.zoom < 1.5 ? 2
-    : 3;
+  // Effective pixel size of 1 world unit on screen
+  const worldUnitPx = camera.zoom;
+
+  // LOD based on effective screen size of a typical creature (~6 world units)
+  // At zoom 1.0, a size-6 creature is 6px → LOD 1 (triangle)
+  // We want triangles at almost all zoom levels since dots are hard to see
+  const lod = worldUnitPx < 0.15 ? 0    // extreme zoom-out: dots
+    : worldUnitPx < 0.5 ? 1              // far: simple triangles
+    : worldUnitPx < 2.0 ? 2              // normal: detailed triangles
+    : 3;                                  // close: full detail
 
   let currentSpecies = -1;
   let path = new Path2D();
@@ -75,12 +95,15 @@ export function renderFrame(
     const x = creatureData[offset];
     const y = creatureData[offset + 1];
     const rotation = creatureData[offset + 2];
-    const size = creatureData[offset + 3];
+    const rawSize = creatureData[offset + 3];
     const energyNorm = creatureData[offset + 4];
     const r = creatureData[offset + 5];
     const g = creatureData[offset + 6];
     const b = creatureData[offset + 7];
     const speciesId = creatureData[offset + 11];
+
+    // Ensure creatures are always visible
+    const size = Math.max(rawSize, MIN_RENDER_SIZE);
 
     // Batch by species — start new path when species changes
     if (speciesId !== currentSpecies) {
@@ -90,14 +113,14 @@ export function renderFrame(
       }
       path = new Path2D();
       currentSpecies = speciesId;
-      // Convert 0-1 RGB to CSS color with energy-based saturation
-      const satMul = 0.4 + energyNorm * 0.6;
-      currentColor = `rgb(${(r * satMul * 255) | 0}, ${(g * satMul * 255) | 0}, ${(b * satMul * 255) | 0})`;
+      // Convert 0-1 RGB to CSS color with energy-based brightness
+      const bright = 0.5 + energyNorm * 0.5;
+      currentColor = `rgb(${(r * bright * 255) | 0}, ${(g * bright * 255) | 0}, ${(b * bright * 255) | 0})`;
     }
 
     if (lod === 0) {
-      // Dot
-      path.rect((x - 1) | 0, (y - 1) | 0, 2, 2);
+      // Dot (only at extreme zoom-out)
+      path.rect(x - 2, y - 2, 4, 4);
     } else if (lod === 1) {
       // Simple triangle
       drawTriangle(path, x, y, rotation, size * 0.8);
@@ -107,17 +130,43 @@ export function renderFrame(
 
       // Energy bar at LOD 2+
       if (lod >= 2) {
-        // Small energy indicator below creature
-        const barWidth = size * 1.5;
-        const barHeight = 1.5;
-        const barY = y + size + 2;
-        // Background
-        ctx.fillStyle = '#333';
+        const barWidth = size * 2;
+        const barHeight = Math.max(1.5, size * 0.2);
+        const barY = y + size + 3;
+        ctx.fillStyle = '#222';
         ctx.fillRect(x - barWidth * 0.5, barY, barWidth, barHeight);
-        // Fill
         ctx.fillStyle = energyNorm > 0.5 ? '#4c4' : energyNorm > 0.2 ? '#cc4' : '#c44';
         ctx.fillRect(x - barWidth * 0.5, barY, barWidth * energyNorm, barHeight);
-        // Reset fill to species color for next creature
+        ctx.fillStyle = currentColor;
+      }
+
+      // Eyes at LOD 3
+      if (lod === 3) {
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+        const eyeOffset = size * 0.3;
+        const eyeForward = size * 0.5;
+        const eyeR = Math.max(1, size * 0.15);
+
+        // Left eye
+        const lex = x + cos * eyeForward + (-sin) * eyeOffset;
+        const ley = y + sin * eyeForward + cos * eyeOffset;
+        // Right eye
+        const rex = x + cos * eyeForward - (-sin) * eyeOffset;
+        const rey = y + sin * eyeForward - cos * eyeOffset;
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(lex, ley, eyeR, 0, Math.PI * 2);
+        ctx.arc(rex, rey, eyeR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(lex + cos * eyeR * 0.3, ley + sin * eyeR * 0.3, eyeR * 0.5, 0, Math.PI * 2);
+        ctx.arc(rex + cos * eyeR * 0.3, rey + sin * eyeR * 0.3, eyeR * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = currentColor;
       }
     }

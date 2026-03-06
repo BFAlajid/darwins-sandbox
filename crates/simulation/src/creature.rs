@@ -32,6 +32,9 @@ pub struct Creature {
 
     // Neural network brain
     pub brain: Brain,
+
+    // Self-adaptive mutation rate (heritable)
+    pub mutation_rate: f32,
 }
 
 impl Creature {
@@ -61,6 +64,7 @@ impl Creature {
             children_count: 0,
             species_id,
             brain,
+            mutation_rate: config.base_mutation_rate,
         }
     }
 
@@ -84,8 +88,15 @@ impl Creature {
         let vision_range = (parent.vision_range + rng.gen_range(-5.0..5.0) * trait_scale)
             .clamp(config.min_vision_range, config.max_vision_range);
 
-        // Brain mutation
-        let brain = parent.brain.mutate(rng, config);
+        // Heritable mutation rate: log-normal mutation
+        // rate' = rate * exp(tau * N(0,1)) where tau ~ 1/sqrt(2 * genome_length)
+        let tau = 1.0 / (2.0 * 131.0_f32).sqrt(); // 131 = total NN params
+        let mutation_rate = (parent.mutation_rate
+            * (tau * rng.gen_range(-1.0..1.0)).exp())
+            .clamp(config.mutation_rate_clamp_min, config.mutation_rate_clamp_max);
+
+        // Brain mutation using creature's heritable mutation rate
+        let brain = parent.brain.mutate(rng, mutation_rate, config);
 
         Self {
             x,
@@ -103,6 +114,7 @@ impl Creature {
             children_count: 0,
             species_id: parent.species_id,
             brain,
+            mutation_rate,
         }
     }
 
