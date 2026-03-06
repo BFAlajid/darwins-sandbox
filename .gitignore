@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Rust build artifacts
+crates/simulation/target/
+crates/simulation/pkg/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+
+# Env
+.env
+.env.local
+
+# Keep pre-built WASM in public/ (committed intentionally)
+# !public/wasm/

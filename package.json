@@ -1,0 +1,30 @@
+{
+  "name": "darwins-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "build:all": "pnpm build:wasm && pnpm build"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/node": "^25.3.5",
+    "@types/react": "^19.2.14",
+    "autoprefixer": "^10.4.27",
+    "comlink": "^4.4.2",
+    "next": "^14.2.35",
+    "postcss": "^8.5.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^19.2.3"
+  }
+}
