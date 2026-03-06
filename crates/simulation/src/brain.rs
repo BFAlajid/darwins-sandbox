@@ -58,8 +58,24 @@ impl Brain {
             .collect();
 
         let mut o_biases: Vec<f32> = vec![0.0; NUM_OUTPUTS];
-        // Slight negative bias on reproduce output to prevent over-reproduction at start
-        o_biases[2] = -0.5;
+        // Bias: positive thrust (move forward), slight negative reproduce
+        o_biases[1] = 0.5;  // thrust output biased positive → creatures move
+        o_biases[2] = -0.5; // reproduce output biased negative → prevent over-reproduction
+
+        // Seed input→hidden weights so food-angle input (index 1) has stronger
+        // influence on the turn output. This gives initial creatures a slight
+        // food-seeking tendency that evolution can refine or override.
+        let mut ih_weights = ih_weights;
+        for h in 0..NUM_HIDDEN {
+            // Input 1 (food angle) → hidden neurons: stronger initial weight
+            ih_weights[h * NUM_INPUTS + 1] += rng.gen_range(0.2..0.6);
+            // Input 0 (food distance) → hidden neurons: slight boost
+            ih_weights[h * NUM_INPUTS + 0] += rng.gen_range(0.1..0.3);
+        }
+        // Clamp after seeding
+        for w in ih_weights.iter_mut() {
+            *w = w.clamp(-clamp, clamp);
+        }
 
         Self {
             ih_weights,

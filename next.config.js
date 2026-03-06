@@ -27,7 +27,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'wasm-unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
               "worker-src 'self' blob:",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
@@ -39,14 +39,8 @@ const nextConfig = {
               "frame-ancestors 'none'",
             ].join('; '),
           },
-          {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
-          },
-          {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
-          },
+          // COOP/COEP omitted — not needed (no SharedArrayBuffer usage)
+          // and they break blob: URL imports in workers on some browsers
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
@@ -66,8 +60,9 @@ const nextConfig = {
         ],
       },
       {
-        // Ensure .wasm files are served with correct MIME type
-        source: '/wasm/:path*',
+        // Ensure .wasm binary is served with correct MIME type
+        // (only *.wasm, NOT *.js glue files)
+        source: '/wasm/:path*.wasm',
         headers: [
           {
             key: 'Content-Type',
