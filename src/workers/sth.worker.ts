@@ -186,21 +186,28 @@ function packAndSendFrame() {
 function runLoop(ticksPerFrame: number) {
   if (!running || !sim) return;
 
-  const start = performance.now();
-  let ticksDone = 0;
+  try {
+    const start = performance.now();
+    let ticksDone = 0;
 
-  while (ticksDone < ticksPerFrame && performance.now() - start < TICK_BUDGET_MS) {
-    sim.step();
-    if (comparisonMode && sim2) {
-      sim2.step();
+    while (ticksDone < ticksPerFrame && performance.now() - start < TICK_BUDGET_MS) {
+      sim.step();
+      if (comparisonMode && sim2) {
+        sim2.step();
+      }
+      ticksDone++;
     }
-    ticksDone++;
+
+    packAndSendFrame();
+    postMessage({ type: 'heartbeat' } as SthWorkerMessage);
+
+    timeoutId = setTimeout(() => runLoop(ticksPerFrame), 0);
+  } catch (err) {
+    running = false;
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[STH Worker] Simulation error:', msg);
+    postMessage({ type: 'error', message: 'Simulation crashed. Please reset.' } as SthWorkerMessage);
   }
-
-  packAndSendFrame();
-  postMessage({ type: 'heartbeat' } as SthWorkerMessage);
-
-  timeoutId = setTimeout(() => runLoop(ticksPerFrame), 0);
 }
 
 function stopLoop() {

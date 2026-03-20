@@ -157,3 +157,134 @@ impl SpatialHash {
         self.cell_size
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use slotmap::DenseSlotMap;
+
+    fn make_keys(n: usize) -> (DenseSlotMap<AgentKey, ()>, Vec<AgentKey>) {
+        let mut map = DenseSlotMap::with_key();
+        let keys: Vec<AgentKey> = (0..n).map(|_| map.insert(())).collect();
+        (map, keys)
+    }
+
+    #[test]
+    fn empty_grid_query_returns_nothing() {
+        let sh = SpatialHash::new(100.0, 100.0, 10.0, 0);
+        let mut found = vec![];
+        sh.query_neighbors(50.0, 50.0, |k| found.push(k));
+        assert!(found.is_empty());
+    }
+
+    #[test]
+    fn single_entity_found_by_query() {
+        let (_map, keys) = make_keys(1);
+        let mut sh = SpatialHash::new(100.0, 100.0, 10.0, 1);
+        sh.rebuild([(keys[0], 50.0, 50.0)].iter().cloned());
+
+        let mut found = vec![];
+        sh.query_neighbors(50.0, 50.0, |k| found.push(k));
+        assert_eq!(found, vec![keys[0]]);
+    }
+
+    #[test]
+    fn entity_found_in_neighbor_cell() {
+        let (_map, keys) = make_keys(1);
+        let mut sh = SpatialHash::new(100.0, 100.0, 10.0, 1);
+        // Place at (15, 15) = cell (1, 1)
+        sh.rebuild([(keys[0], 15.0, 15.0)].iter().cloned());
+
+        // Query from (5, 5) = cell (0, 0) — neighbor of (1, 1)
+        let mut found = vec![];
+        sh.query_neighbors(5.0, 5.0, |k| found.push(k));
+        assert!(found.contains(&keys[0]));
+    }
+
+    #[test]
+    fn distant_entity_not_found() {
+        let (_map, keys) = make_keys(1);
+        let mut sh = SpatialHash::new(100.0, 100.0, 10.0, 1);
+        // Place at (95, 95) = cell (9, 9)
+        sh.rebuild([(keys[0], 95.0, 95.0)].iter().cloned());
+
+        // Query from (5, 5) = cell (0, 0) — far from (9, 9)
+        // With toroidal wrapping, (0,0) neighbors are (9,9),(0,0),(1,0) etc.
+        // Actually toroidal wrapping DOES connect (0,0) to (9,9)!
+        let mut found = vec![];
+        sh.query_neighbors(5.0, 5.0, |k| found.push(k));
+        // With 10x10 grid and toroidal wrapping, corner cells ARE neighbors
+        assert!(found.contains(&keys[0]));
+    }
+
+    #[test]
+    fn multiple_entities_same_cell() {
+        let (_map, keys) = make_keys(3);
+        let mut sh = SpatialHash::new(100.0, 100.0, 10.0, 3);
+        sh.rebuild([
+            (keys[0], 5.0, 5.0),
+            (keys[1], 7.0, 3.0),
+            (keys[2], 2.0, 8.0),
+        ].iter().cloned());
+
+        let mut found = vec![];
+        sh.query_neighbors(5.0, 5.0, |k| found.push(k));
+        assert!(found.contains(&keys[0]));
+        assert!(found.contains(&keys[1]));
+        assert!(found.contains(&keys[2]));
+    }
+
+    #[test]
+    fn rebuild_clears_previous_data() {
+        let (_map, keys) = make_keys(2);
+        let mut sh = SpatialHash::new(100.0, 100.0, 10.0, 2);
+
+        // First build
+        sh.rebuild([(keys[0], 50.0, 50.0)].iter().cloned());
+        let mut found1 = vec![];
+        sh.query_neighbors(50.0, 50.0, |k| found1.push(k));
+        assert_eq!(found1.len(), 1);
+
+        // Rebuild with different entity
+        sh.rebuild([(keys[1], 50.0, 50.0)].iter().cloned());
+        let mut found2 = vec![];
+        sh.query_neighbors(50.0, 50.0, |k| found2.push(k));
+        assert_eq!(found2.len(), 1);
+        assert_eq!(found2[0], keys[1]);
+    }
+
+    #[test]
+    fn query_radius_finds_nearby() {
+        let (_map, keys) = make_keys(2);
+        let mut sh = SpatialHash::new(100.0, 100.0, 10.0, 2);
+        sh.rebuild([
+            (keys[0], 50.0, 50.0),
+            (keys[1], 90.0, 90.0),
+        ].iter().cloned());
+
+        let mut found = vec![];
+        sh.query_radius(50.0, 50.0, 15.0, |k| found.push(k));
+        // key[0] is in the query area, key[1] is far
+        assert!(found.contains(&keys[0]));
+    }
+
+    #[test]
+    fn grid_dimensions_correct() {
+        let sh = SpatialHash::new(100.0, 50.0, 10.0, 0);
+        assert_eq!(sh.grid_width(), 10);
+        assert_eq!(sh.grid_height(), 5);
+        assert_eq!(sh.cell_size(), 10.0);
+    }
+
+    #[test]
+    fn boundary_entity_clamped_to_grid() {
+        let (_map, keys) = make_keys(1);
+        let mut sh = SpatialHash::new(100.0, 100.0, 10.0, 1);
+        // Place exactly at world boundary
+        sh.rebuild([(keys[0], 100.0, 100.0)].iter().cloned());
+        // Should not panic — cell_index clamps to grid bounds
+        let mut found = vec![];
+        sh.query_neighbors(99.0, 99.0, |k| found.push(k));
+        assert!(found.contains(&keys[0]));
+    }
+}

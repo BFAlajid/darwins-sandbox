@@ -28,6 +28,7 @@ export function useSthSimulation() {
 
   const lastHeartbeatRef = useRef<number>(Date.now());
   const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchdogRestarts = useRef(0);
   const lastStatsUpdateRef = useRef<number>(0);
   const lastPrevalenceDayRef = useRef<number>(-1);
   const lastPrevalenceDayRef2 = useRef<number>(-1);
@@ -67,11 +68,11 @@ export function useSthSimulation() {
           break;
 
         case 'frame': {
-          // Store render data in refs (never in React state)
-          // IMPORTANT: .slice() to COPY data before transferring buffer back
-          agentBufferRef.current = new Float32Array(msg.agentBuffer).slice();
-          envBufferRef.current = new Float32Array(msg.envBuffer).slice();
-          facilityBufferRef.current = new Float32Array(msg.facilityBuffer).slice();
+          // Copy render data into refs before returning buffers to worker.
+          // Single .slice() on the ArrayBuffer, then wrap as Float32Array (1 copy, not 2).
+          agentBufferRef.current = new Float32Array(msg.agentBuffer.slice(0));
+          envBufferRef.current = new Float32Array(msg.envBuffer.slice(0));
+          facilityBufferRef.current = new Float32Array(msg.facilityBuffer.slice(0));
 
           // Handle comparison mode second simulation data
           const returnPayload: any = {
@@ -83,9 +84,9 @@ export function useSthSimulation() {
           const transferList: ArrayBuffer[] = [msg.agentBuffer, msg.envBuffer, msg.facilityBuffer];
 
           if (msg.agentBuffer2 && msg.envBuffer2 && msg.facilityBuffer2) {
-            agentBufferRef2.current = new Float32Array(msg.agentBuffer2).slice();
-            envBufferRef2.current = new Float32Array(msg.envBuffer2).slice();
-            facilityBufferRef2.current = new Float32Array(msg.facilityBuffer2).slice();
+            agentBufferRef2.current = new Float32Array(msg.agentBuffer2.slice(0));
+            envBufferRef2.current = new Float32Array(msg.envBuffer2.slice(0));
+            facilityBufferRef2.current = new Float32Array(msg.facilityBuffer2.slice(0));
             returnPayload.agentBuffer2 = msg.agentBuffer2;
             returnPayload.envBuffer2 = msg.envBuffer2;
             returnPayload.facilityBuffer2 = msg.facilityBuffer2;
@@ -234,14 +235,22 @@ export function useSthSimulation() {
     // Initialize WASM
     worker.postMessage({ type: 'init' } as SthCommand);
 
-    // Start watchdog
+    // Start watchdog with backoff limit
+    watchdogRestarts.current = 0;
     if (watchdogRef.current) clearInterval(watchdogRef.current);
     watchdogRef.current = setInterval(() => {
       if (
         store().state === 'running' &&
         Date.now() - lastHeartbeatRef.current > WATCHDOG_TIMEOUT
       ) {
-        console.warn('STH worker watchdog: no heartbeat, restarting...');
+        if (watchdogRestarts.current >= 3) {
+          console.error('STH worker restart limit exceeded');
+          store().setError('Simulation worker crashed repeatedly. Please reload the page.');
+          if (watchdogRef.current) clearInterval(watchdogRef.current);
+          return;
+        }
+        watchdogRestarts.current++;
+        console.warn(`STH worker watchdog: no heartbeat, restarting (attempt ${watchdogRestarts.current}/3)...`);
         initWorker();
       }
     }, 1000);

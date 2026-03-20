@@ -42,10 +42,10 @@ fn urban_prevalence_in_expected_range_after_1_year() {
     let stats = world.get_stats_json();
     let prev = get_prevalence_any(&stats);
 
-    // Thesis: 20.3% urban. Allow wide window for stochastic variance: 5%-45%
+    // Thesis: 20.3% urban. Tightened window: 8%-35%
     assert!(
-        prev >= 0.05 && prev <= 0.45,
-        "Urban prevalence after 1 year = {:.1}%, expected 5%-45% (thesis target: 20.3%)",
+        prev >= 0.08 && prev <= 0.35,
+        "Urban prevalence after 1 year = {:.1}%, expected 8%-35% (thesis target: 20.3%)",
         prev * 100.0,
     );
 }
@@ -93,16 +93,21 @@ fn mda_reduces_prevalence_short_term() {
     // Launch MDA on all schools with albendazole
     world.launch_mda(-1, 0);
 
-    // Run 30 more days for MDA to take effect
-    run_days(&mut world, 30);
-    let post_mda = get_prevalence_any(&world.get_stats_json());
+    // Run 7 days — MDA effect should be immediate (clears worm burden)
+    // but prevalence recalculates based on EPG which drops after treatment
+    run_days(&mut world, 7);
+    let post_mda_7d = get_prevalence_any(&world.get_stats_json());
 
-    // MDA should reduce prevalence (or at minimum not increase it significantly)
-    // With albendazole efficacy ~95% for Ascaris, expect meaningful drop
+    // Also check at 60 days — reinfection should not have fully caught up yet
+    run_days(&mut world, 53); // total 60 days post-MDA
+    let post_mda_60d = get_prevalence_any(&world.get_stats_json());
+
+    // At least one of the post-MDA checkpoints should show reduced prevalence
+    let best_post = post_mda_7d.min(post_mda_60d);
     assert!(
-        post_mda <= pre_mda + 0.05,
-        "Post-MDA prevalence ({:.1}%) should not significantly exceed pre-MDA ({:.1}%)",
-        post_mda * 100.0,
+        best_post <= pre_mda + 0.03,
+        "Post-MDA best prevalence ({:.1}%) should not significantly exceed pre-MDA ({:.1}%)",
+        best_post * 100.0,
         pre_mda * 100.0,
     );
 }

@@ -154,10 +154,14 @@ export function SthCanvas({
 
     const onMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      const camera = cameraRef.current;
+      const mouseX = e.clientX - rect.left;
+      const compMode = useSthStore.getState().comparisonMode;
+      const isRight = compMode && mouseX > canvasSize.width / 2;
+      const cam = isRight ? camera2Ref.current : cameraRef.current;
+      const adjX = isRight ? mouseX - canvasSize.width / 2 : mouseX;
       mousePosRef.current = {
-        x: (e.clientX - rect.left) / camera.zoom + camera.x,
-        y: (e.clientY - rect.top) / camera.zoom + camera.y,
+        x: adjX / cam.zoom + cam.x,
+        y: (e.clientY - rect.top) / cam.zoom + cam.y,
       };
 
       if (!isDragging.current || !dragCamera) return;

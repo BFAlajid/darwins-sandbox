@@ -58,18 +58,8 @@ export default function Home() {
   const prevalenceAny = useSthStore((s) => s.stats?.prevalenceAny ?? 0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Outbreak alarm state (flashing when prevalence > 20%)
-  const [outbreakFlash, setOutbreakFlash] = useState(false);
+  // Outbreak alarm (prevalence > 20%)
   const isOutbreak = prevalenceAny >= 0.2;
-
-  useEffect(() => {
-    if (!isOutbreak) {
-      setOutbreakFlash(false);
-      return;
-    }
-    const interval = setInterval(() => setOutbreakFlash((v) => !v), 800);
-    return () => clearInterval(interval);
-  }, [isOutbreak]);
 
   // Calibration mode: ?calibration=true in URL
   const [calibrationMode, setCalibrationMode] = useState(false);
@@ -143,11 +133,9 @@ export default function Home() {
       {/* Outbreak alarm banner */}
       {isOutbreak && (
         <div
-          className={`px-4 py-1.5 text-center text-sm font-bold transition-colors ${
-            outbreakFlash
-              ? 'bg-red-600 text-white'
-              : 'bg-red-900 text-red-200'
-          }`}
+          className="px-4 py-1.5 text-center text-sm font-bold bg-red-700 text-white animate-pulse"
+          role="alert"
+          aria-live="assertive"
         >
           OUTBREAK ALERT: STH prevalence exceeds 20% ({(prevalenceAny * 100).toFixed(1)}%) — Intervention recommended
         </div>

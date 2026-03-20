@@ -52,11 +52,21 @@ function infectionLensColor(intensity: number): string {
   return '#F44336'; // red - heavy
 }
 
+// Pre-cached KAP color strings (20 buckets, avoids per-agent template literal allocation)
+const KAP_COLOR_CACHE: string[] = (() => {
+  const cache: string[] = [];
+  for (let i = 0; i <= 20; i++) {
+    const k = i / 20;
+    const r = ((1 - k) * 220) | 0;
+    const g = (k * 200) | 0;
+    cache.push(`rgb(${r},${g},60)`);
+  }
+  return cache;
+})();
+
 function kapLensColor(knowledge: number): string {
-  // 0 = low (red) -> 1 = high (green)
-  const r = ((1 - knowledge) * 220) | 0;
-  const g = (knowledge * 200) | 0;
-  return `rgb(${r}, ${g}, 60)`;
+  const idx = Math.min(20, (knowledge * 20) | 0);
+  return KAP_COLOR_CACHE[idx];
 }
 
 /** Day/night cycle tint. Returns alpha for a blue overlay (0 = day, up to 0.3 = night).

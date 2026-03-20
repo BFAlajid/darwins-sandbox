@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useSthStore } from '@/stores/sth-store';
 
 interface Props {
@@ -23,6 +24,23 @@ export function SthControls({ onPlay, onPause, onStep, onReset, onSetSpeed, onTo
 
   const isRunning = state === 'running';
   const isLoading = state === 'loading';
+
+  // Reset confirmation state
+  const [confirmReset, setConfirmReset] = useState(false);
+  useEffect(() => {
+    if (!confirmReset) return;
+    const timer = setTimeout(() => setConfirmReset(false), 3000);
+    return () => clearTimeout(timer);
+  }, [confirmReset]);
+
+  const handleReset = () => {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      return;
+    }
+    setConfirmReset(false);
+    onReset();
+  };
 
   const tick = useSthStore((s) => s.currentTick);
   const hour = tick % 24;
@@ -69,12 +87,16 @@ export function SthControls({ onPlay, onPause, onStep, onReset, onSetSpeed, onTo
       {/* Separator */}
       <div className="w-px h-5 bg-gray-700 mx-0.5 md:mx-1 hidden md:block" />
 
-      {/* Reset */}
+      {/* Reset (with confirmation) */}
       <button
-        onClick={() => onReset()}
-        className="px-3 py-2 md:py-1.5 rounded bg-gray-700 text-gray-300 text-sm hover:bg-red-900 hover:text-red-200 disabled:opacity-40 active:bg-red-800"
+        onClick={handleReset}
+        className={`px-3 py-2 md:py-1.5 rounded text-sm font-medium active:opacity-80 transition-colors ${
+          confirmReset
+            ? 'bg-red-600 text-white'
+            : 'bg-gray-700 text-gray-300 hover:bg-red-900 hover:text-red-200'
+        }`}
       >
-        Reset
+        {confirmReset ? 'Confirm?' : 'Reset'}
       </button>
 
       {/* Separator */}
@@ -92,6 +114,16 @@ export function SthControls({ onPlay, onPause, onStep, onReset, onSetSpeed, onTo
         title="Compare Urban vs Rural barangays side by side"
       >
         {comparisonMode ? 'Exit Compare' : 'Compare U/R'}
+      </button>
+
+      {/* Help button */}
+      <button
+        onClick={() => useSthStore.getState().setShowHelp(true)}
+        className="px-2 py-2 md:py-1.5 rounded bg-gray-700 text-gray-400 text-sm hover:text-gray-200 hover:bg-gray-600 active:bg-gray-500"
+        aria-label="Show keyboard shortcuts and help"
+        title="Help (H)"
+      >
+        ?
       </button>
 
       {/* Time display + stats (right-aligned) */}

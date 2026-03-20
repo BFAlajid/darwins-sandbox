@@ -148,7 +148,7 @@ export const useSthStore = create<SthStore>((set) => ({
 
   setSpeed: (speed) => set({ speed }),
 
-  setError: (error) => set({ error, state: 'error' }),
+  setError: (error) => set(error ? { error, state: 'error' } : { error: null }),
 
   setWorldSize: (worldWidth, worldHeight) => set({ worldWidth, worldHeight }),
 
@@ -201,7 +201,14 @@ export const useSthStore = create<SthStore>((set) => ({
     }),
 
   addInterventionEvent: (event) =>
-    set((s) => ({ interventionLog: [...s.interventionLog, event] })),
+    set((s) => {
+      const log = [...s.interventionLog, event];
+      return {
+        interventionLog: log.length > MAX_PREVALENCE_HISTORY
+          ? log.slice(-MAX_PREVALENCE_HISTORY)
+          : log,
+      };
+    }),
 
   toggleContaminationHeatmap: () =>
     set((s) => ({ showContaminationHeatmap: !s.showContaminationHeatmap })),
