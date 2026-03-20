@@ -1,4 +1,4 @@
-use crate::creature::CreatureKey;
+use crate::agent::AgentKey;
 
 /// Flat-array spatial hash grid. Two-pass counting design with zero per-cell allocation.
 pub struct SpatialHash {
@@ -14,7 +14,7 @@ pub struct SpatialHash {
     /// Prefix-sum offsets into entries array (indexed by cell_index)
     offsets: Vec<u32>,
     /// Packed entity keys, contiguous per-cell
-    entries: Vec<CreatureKey>,
+    entries: Vec<AgentKey>,
     /// Temporary write cursors during rebuild pass 2
     cursors: Vec<u32>,
 }
@@ -43,7 +43,7 @@ impl SpatialHash {
     /// Rebuild the entire grid from scratch. Call once per tick.
     pub fn rebuild<'a, I>(&mut self, creatures: I)
     where
-        I: Iterator<Item = (CreatureKey, f32, f32)> + Clone,
+        I: Iterator<Item = (AgentKey, f32, f32)> + Clone,
     {
         let num_cells = self.grid_width * self.grid_height;
 
@@ -67,7 +67,7 @@ impl SpatialHash {
         }
 
         // Prepare entries and cursors
-        self.entries.resize(total as usize, CreatureKey::default());
+        self.entries.resize(total as usize, AgentKey::default());
         for i in 0..num_cells {
             self.cursors[i] = self.offsets[i];
         }
@@ -82,9 +82,9 @@ impl SpatialHash {
     }
 
     /// Query all entities in neighboring cells (3x3 neighborhood around position).
-    /// Calls `callback` with each found CreatureKey.
+    /// Calls `callback` with each found AgentKey.
     #[inline]
-    pub fn query_neighbors(&self, x: f32, y: f32, mut callback: impl FnMut(CreatureKey)) {
+    pub fn query_neighbors(&self, x: f32, y: f32, mut callback: impl FnMut(AgentKey)) {
         let cx = (x * self.inv_cell_size) as i32;
         let cy = (y * self.inv_cell_size) as i32;
         let gw = self.grid_width as i32;
@@ -114,7 +114,7 @@ impl SpatialHash {
         x: f32,
         y: f32,
         range: f32,
-        mut callback: impl FnMut(CreatureKey),
+        mut callback: impl FnMut(AgentKey),
     ) {
         // How many cells to check in each direction
         let cells_to_check = (range * self.inv_cell_size).ceil() as i32;

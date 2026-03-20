@@ -1,0 +1,2 @@
+# Keep WASM build artifacts committed for Vercel deployment
+# (Vercel doesn't have Rust toolchain installed)

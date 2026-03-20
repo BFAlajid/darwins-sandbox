@@ -1,0 +1,38 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_sthsimulation_free: (a: number, b: number) => void;
+export const sthsimulation_build_handwash_station: (a: number, b: number, c: number) => void;
+export const sthsimulation_build_latrine: (a: number, b: number, c: number) => void;
+export const sthsimulation_build_water_pump: (a: number, b: number, c: number) => void;
+export const sthsimulation_drain_events_json: (a: number) => [number, number];
+export const sthsimulation_get_agent_count: (a: number) => number;
+export const sthsimulation_get_agent_detail_json: (a: number, b: number) => [number, number];
+export const sthsimulation_get_agent_render_data: (a: number) => [number, number];
+export const sthsimulation_get_budget_remaining: (a: number) => number;
+export const sthsimulation_get_budget_spent: (a: number) => number;
+export const sthsimulation_get_day: (a: number) => number;
+export const sthsimulation_get_env_grid_dims: (a: number) => [number, number];
+export const sthsimulation_get_env_render_data: (a: number) => [number, number];
+export const sthsimulation_get_facility_render_data: (a: number) => [number, number];
+export const sthsimulation_get_month: (a: number) => number;
+export const sthsimulation_get_seed: (a: number) => bigint;
+export const sthsimulation_get_stats_json: (a: number) => [number, number];
+export const sthsimulation_get_tick: (a: number) => bigint;
+export const sthsimulation_get_world_height: (a: number) => number;
+export const sthsimulation_get_world_width: (a: number) => number;
+export const sthsimulation_increase_budget: (a: number, b: number) => void;
+export const sthsimulation_launch_bhw_visits: (a: number, b: number) => void;
+export const sthsimulation_launch_education: (a: number, b: number, c: number) => void;
+export const sthsimulation_launch_mda: (a: number, b: number, c: number) => void;
+export const sthsimulation_new: () => [number, number, number];
+export const sthsimulation_step: (a: number) => void;
+export const sthsimulation_with_config: (a: number, b: number) => [number, number, number];
+export const sthsimulation_with_seed: (a: bigint) => [number, number, number];
+export const init_panic_hook: () => void;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_start: () => void;

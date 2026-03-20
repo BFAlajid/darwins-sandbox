@@ -1,91 +1,177 @@
-export class Simulation {
+/* @ts-self-types="./simulation.d.ts" */
+
+export class SthSimulation {
     static __wrap(ptr) {
         ptr = ptr >>> 0;
-        const obj = Object.create(Simulation.prototype);
+        const obj = Object.create(SthSimulation.prototype);
         obj.__wbg_ptr = ptr;
-        SimulationFinalization.register(obj, obj.__wbg_ptr, obj);
+        SthSimulationFinalization.register(obj, obj.__wbg_ptr, obj);
         return obj;
     }
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
         this.__wbg_ptr = 0;
-        SimulationFinalization.unregister(this);
+        SthSimulationFinalization.unregister(this);
         return ptr;
     }
     free() {
         const ptr = this.__destroy_into_raw();
-        wasm.__wbg_simulation_free(ptr, 0);
+        wasm.__wbg_sthsimulation_free(ptr, 0);
     }
     /**
-     * Get current creature count.
+     * Build a handwash station at the given world position.
+     * @param {number} x
+     * @param {number} y
+     */
+    build_handwash_station(x, y) {
+        wasm.sthsimulation_build_handwash_station(this.__wbg_ptr, x, y);
+    }
+    /**
+     * Build a latrine at the given world position.
+     * @param {number} x
+     * @param {number} y
+     */
+    build_latrine(x, y) {
+        wasm.sthsimulation_build_latrine(this.__wbg_ptr, x, y);
+    }
+    /**
+     * Build a water pump at the given world position.
+     * @param {number} x
+     * @param {number} y
+     */
+    build_water_pump(x, y) {
+        wasm.sthsimulation_build_water_pump(this.__wbg_ptr, x, y);
+    }
+    /**
+     * Get new events since last call as JSON (incremental).
+     * @returns {string}
+     */
+    drain_events_json() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.sthsimulation_drain_events_json(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Get the number of agents in the simulation.
      * @returns {number}
      */
-    get_creature_count() {
-        const ret = wasm.simulation_get_creature_count(this.__wbg_ptr);
+    get_agent_count() {
+        const ret = wasm.sthsimulation_get_agent_count(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
-     * Get creature render data as a copied Vec<f32>.
-     * Simpler than pointer-based access — no memory management needed on JS side.
+     * Get detailed information about a specific agent by index.
+     * @param {number} index
+     * @returns {string}
+     */
+    get_agent_detail_json(index) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.sthsimulation_get_agent_detail_json(this.__wbg_ptr, index);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Get agent render data as a flat f32 array (16 floats per agent).
      * @returns {Float32Array}
      */
-    get_creature_render_data() {
-        const ret = wasm.simulation_get_creature_render_data(this.__wbg_ptr);
+    get_agent_render_data() {
+        const ret = wasm.sthsimulation_get_agent_render_data(this.__wbg_ptr);
         var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }
     /**
-     * Get energy drift percentage.
+     * Get the remaining budget.
      * @returns {number}
      */
-    get_energy_drift_pct() {
-        const ret = wasm.simulation_get_energy_drift_pct(this.__wbg_ptr);
+    get_budget_remaining() {
+        const ret = wasm.sthsimulation_get_budget_remaining(this.__wbg_ptr);
         return ret;
     }
     /**
-     * Get current food count.
+     * Get the total budget spent.
      * @returns {number}
      */
-    get_food_count() {
-        const ret = wasm.simulation_get_food_count(this.__wbg_ptr);
+    get_budget_spent() {
+        const ret = wasm.sthsimulation_get_budget_spent(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Get the current day of simulation (0-indexed).
+     * @returns {number}
+     */
+    get_day() {
+        const ret = wasm.sthsimulation_get_day(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
-     * Get food render data as flat f32 array: [x, y, energy, ...]
+     * Get environment grid dimensions: [width, height, cell_size].
      * @returns {Float32Array}
      */
-    get_food_render_data() {
-        const ret = wasm.simulation_get_food_render_data(this.__wbg_ptr);
+    get_env_grid_dims() {
+        const ret = wasm.sthsimulation_get_env_grid_dims(this.__wbg_ptr);
         var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }
     /**
-     * Get maximum generation observed.
+     * Get environment contamination grid as a flat f32 array.
+     * @returns {Float32Array}
+     */
+    get_env_render_data() {
+        const ret = wasm.sthsimulation_get_env_render_data(this.__wbg_ptr);
+        var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Get facility positions as a flat f32 array (4 floats per facility).
+     * @returns {Float32Array}
+     */
+    get_facility_render_data() {
+        const ret = wasm.sthsimulation_get_facility_render_data(this.__wbg_ptr);
+        var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Get the current month of simulation (0-indexed, 30-day months).
      * @returns {number}
      */
-    get_generation_max() {
-        const ret = wasm.simulation_get_generation_max(this.__wbg_ptr);
+    get_month() {
+        const ret = wasm.sthsimulation_get_month(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
-     * Get NaN death count (should always be 0 in normal operation).
-     * @returns {number}
+     * Get the random seed used for this simulation.
+     * @returns {bigint}
      */
-    get_nan_deaths() {
-        const ret = wasm.simulation_get_nan_deaths(this.__wbg_ptr);
-        return ret >>> 0;
+    get_seed() {
+        const ret = wasm.sthsimulation_get_seed(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
     }
     /**
-     * Get tick profile as JSON string.
+     * Get simulation statistics as a JSON string.
      * @returns {string}
      */
-    get_profile_json() {
+    get_stats_json() {
         let deferred1_0;
         let deferred1_1;
         try {
-            const ret = wasm.simulation_get_profile_json(this.__wbg_ptr);
+            const ret = wasm.sthsimulation_get_stats_json(this.__wbg_ptr);
             deferred1_0 = ret[0];
             deferred1_1 = ret[1];
             return getStringFromWasm0(ret[0], ret[1]);
@@ -94,132 +180,110 @@ export class Simulation {
         }
     }
     /**
-     * Get length of render data buffer (number of f32 values).
-     * @returns {number}
-     */
-    get_render_data_len() {
-        const ret = wasm.simulation_get_render_data_len(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Get pointer to creature render data (flat f32 buffer).
-     * MUST re-acquire Float32Array view after every step() call.
-     * @returns {number}
-     */
-    get_render_data_ptr() {
-        const ret = wasm.simulation_get_render_data_ptr(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Get number of active species.
-     * @returns {number}
-     */
-    get_species_count() {
-        const ret = wasm.simulation_get_species_count(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Get species data as JSON string.
-     * @returns {string}
-     */
-    get_species_json() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const ret = wasm.simulation_get_species_json(this.__wbg_ptr);
-            deferred1_0 = ret[0];
-            deferred1_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
-        } finally {
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * Get current tick number.
+     * Get the current tick number.
      * @returns {bigint}
      */
     get_tick() {
-        const ret = wasm.simulation_get_tick(this.__wbg_ptr);
+        const ret = wasm.sthsimulation_get_tick(this.__wbg_ptr);
         return BigInt.asUintN(64, ret);
     }
     /**
-     * Get total births since start.
-     * @returns {bigint}
-     */
-    get_total_births() {
-        const ret = wasm.simulation_get_total_births(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
-    }
-    /**
-     * Get total deaths since start.
-     * @returns {bigint}
-     */
-    get_total_deaths() {
-        const ret = wasm.simulation_get_total_deaths(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
-    }
-    /**
-     * Get world height.
+     * Get the world height in pixels.
      * @returns {number}
      */
     get_world_height() {
-        const ret = wasm.simulation_get_world_height(this.__wbg_ptr);
+        const ret = wasm.sthsimulation_get_world_height(this.__wbg_ptr);
         return ret;
     }
     /**
-     * Get world width.
+     * Get the world width in pixels.
      * @returns {number}
      */
     get_world_width() {
-        const ret = wasm.simulation_get_world_width(this.__wbg_ptr);
+        const ret = wasm.sthsimulation_get_world_width(this.__wbg_ptr);
         return ret;
     }
     /**
-     * Create a new simulation with default config.
+     * Increase the monthly budget increment by a multiplier.
+     * @param {number} multiplier
+     */
+    increase_budget(multiplier) {
+        wasm.sthsimulation_increase_budget(this.__wbg_ptr, multiplier);
+    }
+    /**
+     * Launch BHW house-to-house visits.
+     * coverage: fraction of households to visit (0.0-1.0).
+     * @param {number} coverage
+     */
+    launch_bhw_visits(coverage) {
+        wasm.sthsimulation_launch_bhw_visits(this.__wbg_ptr, coverage);
+    }
+    /**
+     * Launch a health education campaign.
+     * method: 0=Cartoon, 1=BoardGame, 2=TeacherLed, 3=ParentMeeting.
+     * school_id: -1 for all schools, 0+ for specific school.
+     * @param {number} method
+     * @param {number} school_id
+     */
+    launch_education(method, school_id) {
+        wasm.sthsimulation_launch_education(this.__wbg_ptr, method, school_id);
+    }
+    /**
+     * Launch Mass Drug Administration.
+     * school_id: -1 for all schools, 0+ for specific school.
+     * drug: 0 = Albendazole, 1 = Mebendazole.
+     * @param {number} school_id
+     * @param {number} drug
+     */
+    launch_mda(school_id, drug) {
+        wasm.sthsimulation_launch_mda(this.__wbg_ptr, school_id, drug);
+    }
+    /**
+     * Create a new simulation with default configuration.
      */
     constructor() {
-        const ret = wasm.simulation_new();
+        const ret = wasm.sthsimulation_new();
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
         this.__wbg_ptr = ret[0] >>> 0;
-        SimulationFinalization.register(this, this.__wbg_ptr, this);
+        SthSimulationFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
     /**
-     * Advance the simulation by one tick.
+     * Advance the simulation by one tick (1 hour of simulated time).
      */
     step() {
-        wasm.simulation_step(this.__wbg_ptr);
+        wasm.sthsimulation_step(this.__wbg_ptr);
     }
     /**
-     * Create a new simulation from a JSON config string.
+     * Create a new simulation from a JSON configuration string.
      * @param {string} config_json
-     * @returns {Simulation}
+     * @returns {SthSimulation}
      */
     static with_config(config_json) {
         const ptr0 = passStringToWasm0(config_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.simulation_with_config(ptr0, len0);
+        const ret = wasm.sthsimulation_with_config(ptr0, len0);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
-        return Simulation.__wrap(ret[0]);
+        return SthSimulation.__wrap(ret[0]);
     }
     /**
-     * Create a new simulation with a specific seed.
+     * Create a new simulation with a specific random seed.
      * @param {bigint} seed
-     * @returns {Simulation}
+     * @returns {SthSimulation}
      */
     static with_seed(seed) {
-        const ret = wasm.simulation_with_seed(seed);
+        const ret = wasm.sthsimulation_with_seed(seed);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
-        return Simulation.__wrap(ret[0]);
+        return SthSimulation.__wrap(ret[0]);
     }
 }
-if (Symbol.dispose) Simulation.prototype[Symbol.dispose] = Simulation.prototype.free;
+if (Symbol.dispose) SthSimulation.prototype[Symbol.dispose] = SthSimulation.prototype.free;
 
 export function init_panic_hook() {
     wasm.init_panic_hook();
@@ -244,10 +308,6 @@ function __wbg_get_imports() {
         },
         __wbg_new_227d7c05414eb861: function() {
             const ret = new Error();
-            return ret;
-        },
-        __wbg_now_16f0c993d5dd6c27: function() {
-            const ret = Date.now();
             return ret;
         },
         __wbg_stack_3b0d974bbf31e44f: function(arg0, arg1) {
@@ -278,9 +338,9 @@ function __wbg_get_imports() {
     };
 }
 
-const SimulationFinalization = (typeof FinalizationRegistry === 'undefined')
+const SthSimulationFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_simulation_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_sthsimulation_free(ptr >>> 0, 1));
 
 function getArrayF32FromWasm0(ptr, len) {
     ptr = ptr >>> 0;

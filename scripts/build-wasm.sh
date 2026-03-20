@@ -13,8 +13,11 @@ wasm-pack build --target web --out-dir pkg
 echo "Copying WASM artifacts..."
 mkdir -p "$PROJECT_DIR/public/wasm"
 cp pkg/simulation_bg.wasm "$PROJECT_DIR/public/wasm/"
+cp pkg/simulation.js "$PROJECT_DIR/public/wasm/"
+cp pkg/simulation.d.ts "$PROJECT_DIR/public/wasm/"
+cp pkg/simulation_bg.wasm.d.ts "$PROJECT_DIR/public/wasm/" 2>/dev/null || true
 
-# Only copy JS glue and types if src/workers/wasm exists (after Next.js setup)
+# Also copy JS glue and types to src/workers/wasm (worker imports from here)
 if [ -d "$PROJECT_DIR/src/workers/wasm" ]; then
     cp pkg/simulation.js "$PROJECT_DIR/src/workers/wasm/"
     cp pkg/simulation.d.ts "$PROJECT_DIR/src/workers/wasm/"

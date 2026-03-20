@@ -9,15 +9,18 @@ interface Camera {
 }
 
 export function useCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  // WebGL canvas (bottom layer)
+  const glCanvasRef = useRef<HTMLCanvasElement>(null);
+  // 2D overlay canvas (top layer)
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
   const isDragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
-  const setupCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
+  const setupOverlay = useCallback(() => {
+    const canvas = overlayCanvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -30,26 +33,26 @@ export function useCanvas() {
     const ctx = canvas.getContext('2d', { desynchronized: true });
     if (ctx) {
       ctx.scale(dpr, dpr);
-      ctxRef.current = ctx;
+      overlayCtxRef.current = ctx;
     }
 
     setCanvasSize({ width: rect.width, height: rect.height });
   }, []);
 
   useEffect(() => {
-    setupCanvas();
+    setupOverlay();
 
-    const observer = new ResizeObserver(() => setupCanvas());
-    if (canvasRef.current) {
-      observer.observe(canvasRef.current.parentElement!);
+    const observer = new ResizeObserver(() => setupOverlay());
+    if (overlayCanvasRef.current) {
+      observer.observe(overlayCanvasRef.current.parentElement!);
     }
 
     return () => observer.disconnect();
-  }, [setupCanvas]);
+  }, [setupOverlay]);
 
-  // Mouse wheel zoom
+  // Mouse wheel zoom (on overlay canvas since it's on top)
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = overlayCanvasRef.current;
     if (!canvas) return;
 
     const onWheel = (e: WheelEvent) => {
@@ -58,7 +61,6 @@ export function useCanvas() {
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
       const newZoom = Math.max(0.1, Math.min(10, camera.zoom * zoomFactor));
 
-      // Zoom toward cursor position
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -76,7 +78,7 @@ export function useCanvas() {
 
   // Mouse drag pan
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = overlayCanvasRef.current;
     if (!canvas) return;
 
     const onMouseDown = (e: MouseEvent) => {
@@ -109,27 +111,5 @@ export function useCanvas() {
     };
   }, []);
 
-  // Canvas context recovery
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const onLost = (e: Event) => {
-      e.preventDefault();
-      ctxRef.current = null;
-    };
-
-    const onRestored = () => {
-      setupCanvas();
-    };
-
-    canvas.addEventListener('contextlost', onLost);
-    canvas.addEventListener('contextrestored', onRestored);
-    return () => {
-      canvas.removeEventListener('contextlost', onLost);
-      canvas.removeEventListener('contextrestored', onRestored);
-    };
-  }, [setupCanvas]);
-
-  return { canvasRef, ctxRef, cameraRef, canvasSize };
+  return { glCanvasRef, overlayCanvasRef, overlayCtxRef, cameraRef, canvasSize, setupOverlay };
 }
