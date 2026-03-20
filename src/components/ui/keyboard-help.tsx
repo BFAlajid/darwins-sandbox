@@ -42,6 +42,8 @@ export function KeyboardHelp() {
       <div
         className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-sm w-full shadow-xl max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Keyboard Shortcuts"
       >
         <h2 className="text-gray-200 font-bold text-sm mb-4">Keyboard Shortcuts</h2>
         <div className="flex flex-col gap-2">

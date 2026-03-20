@@ -82,6 +82,8 @@ export function SaveLoadModal({ onLoadSeed }: Props) {
       <div
         className="bg-gray-800 border border-gray-700 rounded-lg p-5 max-w-lg w-full shadow-xl max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Save and Load Simulation"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-gray-200 font-bold text-sm">Save / Load</h2>
@@ -100,6 +102,7 @@ export function SaveLoadModal({ onLoadSeed }: Props) {
             placeholder="Save name (optional)"
             value={saveName}
             onChange={(e) => setSaveName(e.target.value)}
+            autoFocus
             className="flex-1 px-2 py-1.5 bg-gray-900 border border-gray-600 rounded text-xs text-gray-200 placeholder-gray-600 outline-none focus:border-emerald-500"
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           />

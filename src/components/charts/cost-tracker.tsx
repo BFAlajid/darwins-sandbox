@@ -46,13 +46,18 @@ export function CostTracker() {
     const width = rect.width;
     if (width <= 0) return;
 
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(CANVAS_HEIGHT * dpr);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${CANVAS_HEIGHT}px`;
+    const targetW = Math.round(width * dpr);
+    const targetH = Math.round(CANVAS_HEIGHT * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${CANVAS_HEIGHT}px`;
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.resetTransform();
     ctx.scale(dpr, dpr);
 
     ctx.fillStyle = BG_COLOR;

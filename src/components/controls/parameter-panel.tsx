@@ -137,6 +137,8 @@ export function ParameterPanel({ onReset }: Props) {
       <div
         className="bg-gray-800 border border-gray-700 rounded-lg p-4 max-w-md w-full shadow-xl max-h-[70vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Simulation Parameters"
       >
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-gray-200 font-bold text-sm">STH Simulation Parameters</h2>

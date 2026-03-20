@@ -87,12 +87,3 @@ export function generateShareUrl(seed: number): string {
   return url.toString();
 }
 
-export function getSeedFromUrl(): number | null {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  const seed = params.get('seed');
-  if (seed && /^\d+$/.test(seed)) {
-    return parseInt(seed, 10);
-  }
-  return null;
-}

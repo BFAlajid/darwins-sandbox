@@ -69,10 +69,18 @@ export function exportInterventionsCsv(
 
   const header = 'Day,Type,Description,Cost';
   const rows = log.map(
-    (e) => `${e.day},${e.type},"${e.description.replace(/"/g, '""')}",${e.cost.toFixed(2)}`,
+    (e) => `${e.day},${sanitizeCsvField(e.type)},"${sanitizeCsvField(e.description).replace(/"/g, '""')}",${e.cost.toFixed(2)}`,
   );
   const csv = [header, ...rows].join('\n');
   downloadBlob(csv, filename, 'text/csv');
+}
+
+/** Prevent CSV formula injection by prefixing dangerous chars with a single quote. */
+function sanitizeCsvField(value: string): string {
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return "'" + value;
+  }
+  return value;
 }
 
 /**

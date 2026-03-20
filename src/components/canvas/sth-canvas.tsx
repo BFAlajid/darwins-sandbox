@@ -513,6 +513,8 @@ export function SthCanvas({
         className={`absolute inset-0 w-full h-full ${cursorClass}`}
         style={{ display: 'block' }}
         onClick={handleClick}
+        role="img"
+        aria-label="STH simulation visualization showing agent positions, infection status, and environmental contamination"
       />
     </div>
   );
