@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 // ---------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SthEventType {
     MdaCompleted {
         school_id: Option<u8>,
@@ -144,8 +145,8 @@ mod tests {
 
         let json = tracker.drain_json();
         assert!(!json.is_empty());
-        assert!(json.contains("BudgetDepleted"));
-        assert!(json.contains("MdaCompleted"));
+        assert!(json.contains("budget_depleted"));
+        assert!(json.contains("mda_completed"));
 
         // After drain, tracker should be empty
         assert!(tracker.is_empty());
