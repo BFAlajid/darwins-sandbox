@@ -10,6 +10,7 @@ import type {
   PrevalencePoint,
   InterventionEvent,
 } from '@/lib/sth-types';
+import { toPrevalencePoint } from '@/lib/prevalence';
 import { useSthStore } from '@/stores/sth-store';
 
 const WATCHDOG_TIMEOUT = 5000;
@@ -126,13 +127,7 @@ export function useSthSimulation() {
                 stats.day - lastPrevalenceDayRef.current >= PREVALENCE_SAMPLE_INTERVAL_DAYS
               ) {
                 lastPrevalenceDayRef.current = stats.day;
-                const point: PrevalencePoint = {
-                  day: stats.day,
-                  ascaris: stats.prevalenceAscaris,
-                  trichuris: stats.prevalenceTrichuris,
-                  hookworm: stats.prevalenceHookworm,
-                  any: stats.prevalenceAny,
-                };
+                const point: PrevalencePoint = toPrevalencePoint(stats);
                 store().addPrevalencePoint(point);
               }
             } catch {
@@ -150,13 +145,7 @@ export function useSthSimulation() {
                   stats2.day - lastPrevalenceDayRef2.current >= PREVALENCE_SAMPLE_INTERVAL_DAYS
                 ) {
                   lastPrevalenceDayRef2.current = stats2.day;
-                  const point2: PrevalencePoint = {
-                    day: stats2.day,
-                    ascaris: stats2.prevalenceAscaris,
-                    trichuris: stats2.prevalenceTrichuris,
-                    hookworm: stats2.prevalenceHookworm,
-                    any: stats2.prevalenceAny,
-                  };
+                  const point2: PrevalencePoint = toPrevalencePoint(stats2);
                   store().addPrevalencePoint2(point2);
                 }
               } catch {
