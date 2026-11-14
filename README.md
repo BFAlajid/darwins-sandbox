@@ -1,86 +1,58 @@
 # Darwin's Sandbox
 
-Real-time evolution simulator where creatures with neural network brains compete for food, reproduce with mutations, and undergo natural selection — all running in your browser.
+An agent-based simulation of soil-transmitted helminth (STH) infection and deworming, running entirely in the browser. It is calibrated to the findings of a thesis on school-aged children in Cebu City, Philippines (Ascaris, Trichuris and hookworm; urban vs. rural barangays).
 
-Built with Rust/WASM for the simulation engine and Next.js for the frontend.
+The simulation engine is Rust compiled to WebAssembly, running in a Web Worker. The interface is Next.js with Canvas 2D / WebGL2 rendering.
 
-## Features
+## What it models
 
-- **Closed energy budget** — total world energy is conserved, naturally creating carrying capacity
-- **Momentum physics** — creatures have inertia, drag, and limited turn rates
-- **Neural network brains** — 12-input, 8-hidden, 3-output feedforward networks (upcoming)
-- **Genetic mutation** — Gaussian + Cauchy operators with heritable mutation rates (upcoming)
-- **Speciation** — genomic distance clustering with auto-generated species names (upcoming)
-- **Canvas rendering** — LOD system, species color batching, pan/zoom camera
-- **Web Worker isolation** — simulation never blocks the UI thread
-- **Time-budgeted stepping** — maintains 60fps regardless of simulation speed
+- Individual agents (children, parents, teachers, health workers) following daily routines in urban and rural barangays
+- Transmission of Ascaris, Trichuris and hookworm through a contaminated environment grid
+- Knowledge, attitudes and practices (KAP) per agent, alongside structural factors such as latrine and water access
+- Interventions: mass drug administration (MDA), WASH, education and health-worker visits, with a cost tracker
+- Urban and rural side-by-side comparison
+- Prevalence history charted against the thesis reference values (Ascaris 11.7%, Trichuris 4.8%, hookworm 0%)
+- CSV export (prevalence in percent, columns suffixed `_pct`) and JSON stats snapshot
 
-## Tech Stack
+Reference thesis data lives in `src/lib/thesis-data.ts`. The design is described in [STH-ARCHITECTURE.md](./STH-ARCHITECTURE.md).
+
+## Tech stack
 
 | Layer | Technology |
 |-------|-----------|
-| Simulation | Rust → WASM (156KB binary) |
-| Entity Storage | `slotmap` (DenseSlotMap) |
-| Spatial Index | Custom flat-array spatial hash |
-| Frontend | Next.js 14, TypeScript, Tailwind CSS |
-| State | Zustand (5Hz throttled stats) |
-| Rendering | HTML Canvas 2D with path batching |
-| Worker Comm | postMessage with transferable ArrayBuffers |
+| Simulation | Rust to WASM (`wasm-bindgen`, `serde`, `slotmap`, `rand`) in `crates/simulation` |
+| Frontend | Next.js 14, React, TypeScript, Tailwind CSS |
+| State | Zustand |
+| Worker bridge | Comlink / `postMessage` |
 | Deployment | Vercel |
 
 ## Development
 
-### Prerequisites
-
-- Node.js 18+
-- pnpm
-- Rust toolchain with `wasm32-unknown-unknown` target
-- wasm-pack
-
-### Setup
+Prerequisites: Node.js, pnpm, a Rust toolchain with the `wasm32-unknown-unknown` target, and `wasm-pack`.
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Build WASM (only needed when Rust code changes)
-pnpm build:wasm
-
-# Start dev server
+pnpm build:wasm   # only needed when the Rust code changes
 pnpm dev
 ```
 
-### Commands
-
 | Command | Description |
-|---------|------------|
-| `pnpm dev` | Start Next.js dev server |
+|---------|-------------|
+| `pnpm dev` | Start the Next.js dev server |
 | `pnpm build` | Production build |
-| `pnpm build:wasm` | Rebuild WASM binary from Rust |
-| `pnpm build:all` | Build WASM + Next.js |
+| `pnpm start` | Serve the production build |
+| `pnpm build:wasm` | Build the crate with `wasm-pack` and copy it to `public/wasm` (and the JS glue to `src/workers/wasm`) |
+| `pnpm build:all` | `build:wasm` then `build` |
 
-### Running Rust Tests
+The worker loads the committed binary from `public/wasm/`, so rebuild and commit it after any change to the Rust engine.
+
+### Tests
 
 ```bash
-cd crates/simulation
-cargo test
+cd crates/simulation && cargo test        # engine unit and calibration tests
+node --test src/lib/prevalence.test.ts    # percent conversion of engine output
+npx tsc --noEmit                          # type check
 ```
-
-Tests cover determinism, population stability, energy conservation, and NaN resilience.
-
-## Controls
-
-| Input | Action |
-|-------|--------|
-| Space | Play / Pause |
-| . | Single step |
-| 1-5 | Speed presets |
-| Scroll | Zoom |
-| Drag | Pan |
-
-## Architecture
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design document covering energy systems, physics, neural networks, genetics, speciation, rendering pipeline, security model, and failsafe architecture.
 
 ## License
 

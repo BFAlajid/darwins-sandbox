@@ -151,23 +151,15 @@
 ### 4. Darwin's Sandbox
 **https://github.com/BFAlajid/darwins-sandbox**
 
-**One-liner:** Real-time evolution simulator (now refactored to STH infection/deworming simulation) with Rust/WASM engine, agent-based modeling, and Canvas 2D rendering.
+**One-liner:** Agent-based STH infection and deworming simulation (Rust/WASM + Next.js), calibrated to a Cebu City thesis.
 
 **Tech Stack:**
 - Rust (76K bytes), TypeScript (29K), JavaScript (32K)
-- Rust → WASM (292KB binary), wasm-bindgen, slotmap, rand, serde
+- Rust → WASM (~190KB binary), wasm-bindgen, slotmap, rand, serde
 - Next.js 14, Zustand, Canvas 2D
 - Web Worker (off-main-thread simulation)
 
-**Key Features (Evolution Sim):**
-- Closed energy budget with carrying capacity emergence
-- Neural network brains (16→8→4 feedforward)
-- Genetic mutation (Gaussian + Cauchy, heritable mutation rates)
-- Speciation via genome distance clustering
-- Canvas rendering with LOD system, species color batching
-- Interventions: meteor, drought, flood, wall drawing, predator mode
-
-**Key Features (STH Simulation — local, not yet pushed):**
+**Key Features:**
 - Agent-based STH infection model (Ascaris, Trichuris, Hookworm)
 - Stochastic SIS transmission with WHO EPG thresholds
 - KAP behavioral model with structural dominance (thesis finding)
