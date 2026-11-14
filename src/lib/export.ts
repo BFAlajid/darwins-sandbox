@@ -7,7 +7,7 @@ import type { PrevalencePoint, InterventionEvent, SthStats } from './sth-types';
 
 /**
  * Export prevalence history as CSV.
- * Columns: Day, Ascaris%, Trichuris%, Hookworm%, Any%
+ * Columns: day, ascaris_pct, trichuris_pct, hookworm_pct, any_pct (percent, 0-100)
  */
 export function exportPrevalenceCsv(
   history: PrevalencePoint[],
@@ -15,7 +15,7 @@ export function exportPrevalenceCsv(
 ): void {
   if (history.length === 0) return;
 
-  const header = 'Day,Ascaris%,Trichuris%,Hookworm%,Any%';
+  const header = 'day,ascaris_pct,trichuris_pct,hookworm_pct,any_pct';
   const rows = history.map(
     (p) => `${p.day},${p.ascaris.toFixed(2)},${p.trichuris.toFixed(2)},${p.hookworm.toFixed(2)},${p.any.toFixed(2)}`,
   );
@@ -34,7 +34,7 @@ export function exportComparisonCsv(
   const maxLen = Math.max(urban.length, rural.length);
   if (maxLen === 0) return;
 
-  const header = 'Day,Urban_Ascaris%,Urban_Trichuris%,Urban_Hookworm%,Urban_Any%,Rural_Ascaris%,Rural_Trichuris%,Rural_Hookworm%,Rural_Any%';
+  const header = 'day,urban_ascaris_pct,urban_trichuris_pct,urban_hookworm_pct,urban_any_pct,rural_ascaris_pct,rural_trichuris_pct,rural_hookworm_pct,rural_any_pct';
   const rows: string[] = [];
 
   for (let i = 0; i < maxLen; i++) {
